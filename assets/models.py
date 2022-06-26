@@ -1,6 +1,10 @@
 # Create your models here.
+import re
+
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator
 from django.db import models
 
 
@@ -39,8 +43,8 @@ class Asset(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.PROTECT, related_name="assets"
     )
-    barcode = models.CharField(max_length=10)
-    serial_no = models.CharField(max_length=225)
+    barcode = models.CharField(max_length=10, unique=True)
+    serial_no = models.CharField(max_length=225, unique=True)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True)
 
     def __str__(self) -> str:
@@ -61,10 +65,50 @@ class Staff(models.Model):
     class Meta:
         ordering = ["user__first_name", "user__last_name"]
 
+    @admin.display(ordering="user__last_name")
+    def first_name(self):
+        return self.user.first_name
+
+    def last_name(self):
+        return self.user.last_name
+
+    def email(self):
+        return self.user.email
+
 
 class Delivery(models.Model):
     placed_at = models.DateTimeField(auto_now_add=True)
     staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True)
-    location_from = models.ForeignKey(Location, on_delete=models.PROTECT,related_name="deliveries_from")
-    location_to = models.ForeignKey(Location, on_delete=models.PROTECT, related_name="deliveries_to")
+    location_from = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="deliveries_from"
+    )
+    location_to = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="deliveries_to"
+    )
     delivery_no = models.CharField(max_length=225, unique=True)
+    in_transit = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        return self.delivery_no
+
+    class Meta:
+        ordering = [
+            "delivery_no",
+        ]
+
+
+class DeliveryAssets(models.Model):
+    delivery = models.ForeignKey(
+        Delivery, on_delete=models.PROTECT, related_name="assets"
+    )
+    asset = models.ForeignKey(
+        Asset, on_delete=models.PROTECT, related_name="deliveryassets"
+    )
+    quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
+    received = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = [
+            "delivery",
+            "asset",
+        ]
