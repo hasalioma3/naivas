@@ -1,6 +1,11 @@
+# Create your models here.
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-# Create your models here.
+
+class User(AbstractUser):
+    email = models.EmailField(unique=True)
 
 
 class Category(models.Model):
@@ -46,14 +51,20 @@ class Asset(models.Model):
 
 
 class Staff(models.Model):
-    first_name = models.CharField(max_length=225)
-    last_name = models.CharField(max_length=225)
-    email = models.EmailField(unique=True)
     payrol = models.CharField(max_length=225, unique=True)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.user.first_name} {self.user.last_name}"
 
     class Meta:
-        ordering = ["first_name", "last_name"]
+        ordering = ["user__first_name", "user__last_name"]
+
+
+class Delivery(models.Model):
+    placed_at = models.DateTimeField(auto_now_add=True)
+    staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True)
+    location_from = models.ForeignKey(Location, on_delete=models.PROTECT,related_name="deliveries_from")
+    location_to = models.ForeignKey(Location, on_delete=models.PROTECT, related_name="deliveries_to")
+    delivery_no = models.CharField(max_length=225, unique=True)
